@@ -1,0 +1,33 @@
+# ============================================================
+# 高品質 RAG 知識庫系統 - Python 依赖清单
+# 安装: pip install -r requirements.txt
+# ============================================================
+
+# --- Web 框架 ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# --- 向量数据库客户端 ---
+qdrant-client>=1.9.0
+
+# --- OpenAI 兼容 API 客户端 (用于硅基流动) ---
+openai>=1.30.0
+
+# --- 异步 HTTP 客户端 ---
+httpx>=0.27.0
+
+# --- 环境变量管理 ---
+python-dotenv>=1.0.1
+
+# --- 文档切分 ---
+langchain-text-splitters>=0.2.0
+
+# --- API 限流重试 ---
+tenacity>=9.0.0
+
+# --- 数据校验与序列化 ---
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+
+# --- 类型提示增强 (开发依赖) ---
+typing-extensions>=4.11.0

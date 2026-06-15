@@ -1,0 +1,11 @@
+{
+  "name": "high-quality-rag",
+  "version": "1.0.0",
+  "description": "高品質 RAG 知識庫系统",
+  "scripts": {
+    "start": "docker compose up -d && .venv\\Scripts\\python.exe -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload",
+    "pipeline": ".venv\\Scripts\\python.exe -m data_pipeline.main --dir ./workspace/raw_docs",
+    "stop": "docker compose down",
+    "backend": ".venv\\Scripts\\python.exe -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+  }
+}
