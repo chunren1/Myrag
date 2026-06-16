@@ -52,6 +52,7 @@ npm start
 | `npm start` | 启动 Qdrant + 后端 |
 | `npm run pipeline` | 导入文档到知识库 |
 | `npm run stop` | 停止 Qdrant |
+| `npm test` | 运行单元测试 |
 
 ## API
 
@@ -74,12 +75,14 @@ npm start
 
 ```
 backend/              # FastAPI 服务
-  core/                # Agent 闭环核心
-  clients/             # API 客户端封装
-  api/                 # 路由 & SSE
-data_pipeline/         # 离线数据管道
-web_frontend/          # 聊天界面
-workspace/             # 文档 & 日志
+  core/               # Agent 闭环核心
+  clients/            # API 客户端封装
+  api/                # 路由 & SSE
+  dependencies.py     # FastAPI 依赖注入
+  tests/              # 单元测试
+data_pipeline/        # 离线数据管道 (支持增量更新)
+web_frontend/         # 聊天界面 (Alpine.js)
+workspace/            # 文档 & 日志
 ```
 
 ## 特性
@@ -89,3 +92,6 @@ workspace/             # 文档 & 日志
 - 流式输出：SSE 实时推送，自动过滤草稿内容
 - 智能路由：短问题自动加速
 - 防限流：指数退避 + 随机抖动重试
+- 增量更新：数据管道仅处理变更的文档，自动删除已移除文件的向量
+- 安全配置：Qdrant API Key 认证 + 可配置 CORS 白名单
+- 依赖注入：FastAPI Depends 模式替代全局变量

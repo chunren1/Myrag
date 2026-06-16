@@ -27,8 +27,6 @@
     display: flex;
     flex-direction: column;
   }
-
-  /* Header */
   .header {
     padding: 12px 20px;
     background: var(--surface);
@@ -55,8 +53,6 @@
   }
   .status-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
   .status-dot.offline { background: #ef4444; }
-
-  /* Chat Area */
   .chat-container {
     flex: 1;
     overflow-y: auto;
@@ -68,8 +64,6 @@
   .chat-container::-webkit-scrollbar { width: 6px; }
   .chat-container::-webkit-scrollbar-track { background: transparent; }
   .chat-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* Messages */
   .msg {
     display: flex;
     gap: 12px;
@@ -79,7 +73,6 @@
   @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
   .msg.user { align-self: flex-end; flex-direction: row-reverse; }
   .msg.assistant { align-self: flex-start; }
-
   .avatar {
     width: 34px; height: 34px;
     border-radius: 50%;
@@ -91,7 +84,6 @@
   }
   .msg.user .avatar { background: var(--accent); }
   .msg.assistant .avatar { background: linear-gradient(135deg, #22c55e, #16a34a); }
-
   .bubble {
     padding: 12px 16px;
     border-radius: var(--radius);
@@ -101,32 +93,14 @@
   }
   .msg.user .bubble { background: var(--accent); border-bottom-right-radius: 4px; }
   .msg.assistant .bubble { background: var(--surface); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
-
-  /* Markdown inside bubble */
   .bubble h1, .bubble h2, .bubble h3 { margin: 12px 0 6px; font-size: 1.05em; }
   .bubble h2 { font-size: 1em; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
   .bubble ul, .bubble ol { padding-left: 20px; margin: 4px 0; }
   .bubble li { margin: 2px 0; }
-  .bubble code {
-    background: var(--surface2);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.9em;
-  }
-  .bubble pre {
-    background: #0f172a;
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 8px 0;
-  }
+  .bubble code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  .bubble pre { background: #0f172a; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
   .bubble pre code { background: none; padding: 0; }
-  .bubble blockquote {
-    border-left: 3px solid var(--accent2);
-    padding-left: 12px;
-    margin: 8px 0;
-    color: var(--text2);
-  }
+  .bubble blockquote { border-left: 3px solid var(--accent2); padding-left: 12px; margin: 8px 0; color: var(--text2); }
   .bubble .doc-ref {
     display: inline-block;
     background: rgba(99,102,241,0.15);
@@ -140,8 +114,6 @@
   .bubble table { border-collapse: collapse; width: 100%; margin: 8px 0; }
   .bubble th, .bubble td { padding: 6px 10px; border: 1px solid var(--border); text-align: left; }
   .bubble th { background: var(--surface2); }
-
-  /* Thinking Indicator */
   .thinking {
     display: flex;
     align-items: center;
@@ -164,8 +136,6 @@
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
   }
-
-  /* Input */
   .input-area {
     padding: 12px 20px 16px;
     background: var(--surface);
@@ -208,11 +178,6 @@
   }
   .input-row button:hover:not(:disabled) { background: var(--accent2); }
   .input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .input-row button .loading { display: none; }
-  .input-row button.sending .send-text { display: none; }
-  .input-row button.sending .loading { display: inline-block; }
-
-  /* Toggle */
   .toggle-row {
     display: flex;
     gap: 8px;
@@ -238,8 +203,6 @@
   }
   .toggle input { display: none; }
   .toggle input:checked + label { background: var(--accent); color: #fff; }
-
-  /* Welcome */
   .welcome {
     text-align: center;
     padding: 40px 20px;
@@ -259,8 +222,6 @@
     background: var(--surface);
   }
   .tag:hover { border-color: var(--accent2); color: var(--text); }
-
-  /* Error */
   .error-banner {
     background: rgba(239,68,68,0.15);
     border: 1px solid rgba(239,68,68,0.3);
@@ -271,10 +232,7 @@
     align-self: center;
     max-width: 600px;
   }
-
   .empty-state { flex:1; display:flex; align-items:center; justify-content:center; }
-
-  /* Responsive */
   @media (max-width: 640px) {
     .msg { max-width: 95%; }
     .input-row { gap: 6px; }
@@ -287,276 +245,192 @@
 <div class="header">
   <h1>🧠 知识库 RAG 问答</h1>
   <div>
-    <span class="status-dot online" id="statusDot"></span>
-    <span class="badge" id="statusText">后端已连接</span>
+    <span class="status-dot" :class="online ? 'online' : 'offline'"></span>
+    <span class="badge" x-text="online ? '后端已连接' : '后端离线'"></span>
   </div>
 </div>
 
-<div class="chat-container" id="chatContainer">
-  <div class="empty-state">
-    <div class="welcome">
-      <h2>👋 欢迎体验 Agentic RAG</h2>
-      <p>基于硅基流动免费 API 的知识库问答系统，支持问题拆解、多阶段检索、上下文反思。</p>
-      <div class="tags">
-        <span class="tag" onclick="sendPreset('什么是 Agentic RAG？')">什么是 Agentic RAG？</span>
-        <span class="tag" onclick="sendPreset('RAG 系统有哪些核心组件？')">RAG 核心组件</span>
-        <span class="tag" onclick="sendPreset('如何提高检索准确率？')">提高检索准确率</span>
+<div class="chat-container" id="chatContainer" x-ref="chatBox">
+  <template x-if="messages.length === 0">
+    <div class="empty-state">
+      <div class="welcome">
+        <h2>👋 欢迎体验 Agentic RAG</h2>
+        <p>基于硅基流动免费 API 的知识库问答系统，支持问题拆解、多阶段检索、上下文反思。</p>
+        <div class="tags">
+          <template x-for="preset in presets" :key="preset">
+            <span class="tag" x-text="preset" @click="$refs.queryInput.value = preset; send()"></span>
+          </template>
+        </div>
       </div>
     </div>
-  </div>
+  </template>
+
+  <template x-for="(msg, idx) in messages" :key="idx">
+    <div class="msg" :class="msg.role">
+      <div class="avatar" x-text="msg.role === 'user' ? '👤' : '🤖'"></div>
+      <div class="bubble" x-html="msg.role === 'assistant' ? renderMd(msg.content) : msg.content"></div>
+    </div>
+  </template>
+
+  <template x-if="streaming">
+    <div class="thinking">
+      🤖 正在检索和思考 <span class="dots"><span></span><span></span><span></span></span>
+    </div>
+  </template>
+
+  <template x-if="error">
+    <div class="error-banner" x-text="'⚠️ ' + error"></div>
+  </template>
 </div>
 
 <div class="input-area">
   <div class="toggle-row">
     <span>模式:</span>
     <div class="toggle">
-      <input type="radio" name="mode" id="modeAgentic" value="agentic" checked>
-      <label for="modeAgentic">🔍 完整 Agent</label>
-      <input type="radio" name="mode" id="modeSimple" value="simple">
-      <label for="modeSimple">⚡ 快速检索</label>
+      <input type="radio" name="mode" id="mAgentic" value="agentic" x-model="mode">
+      <label for="mAgentic">🔍 完整 Agent</label>
+      <input type="radio" name="mode" id="mSimple" value="simple" x-model="mode">
+      <label for="mSimple">⚡ 快速检索</label>
     </div>
   </div>
   <div class="input-row">
-    <input id="queryInput" type="text" placeholder="输入你的问题..." onkeydown="if(event.key==='Enter')send()">
-    <button id="sendBtn" onclick="send()">
-      <span class="send-text">发送</span>
-      <span class="loading">⏳</span>
+    <input x-ref="queryInput" type="text" placeholder="输入你的问题..."
+      @keydown.enter="send()" :disabled="streaming">
+    <button @click="send()" :disabled="streaming">
+      <span x-show="!streaming">发送</span>
+      <span x-show="streaming">⏳</span>
     </button>
   </div>
 </div>
 
 <script>
 const API = 'http://localhost:8000/api';
-let isStreaming = false;
 
-async function checkHealth() {
-  try {
-    const r = await fetch(`${API}/health`);
-    if (r.ok) {
-      document.getElementById('statusDot').className = 'status-dot online';
-      document.getElementById('statusText').textContent = '后端已连接';
-    }
-  } catch {
-    document.getElementById('statusDot').className = 'status-dot offline';
-    document.getElementById('statusText').textContent = '后端离线';
-  }
-}
-
-checkHealth();
-setInterval(checkHealth, 30000);
-
-function getMode() {
-  return document.querySelector('input[name="mode"]:checked').value;
-}
-
-function sendPreset(q) {
-  document.getElementById('queryInput').value = q;
-  send();
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function simpleMarkdown(text) {
-  // Basic markdown -> HTML
-  let html = escapeHtml(text);
-
-  // Escape prevention: first convert code blocks to markers
-  const codeBlocks = [];
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const idx = codeBlocks.length;
-    codeBlocks.push(`<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(code.trim())}</code></pre>`);
-    return `%%CODE${idx}%%`;
+function renderMd(text) {
+  if (!text) return '';
+  let h = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const blocks = [];
+  h = h.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const i = blocks.length;
+    blocks.push(`<pre><code>${code.trim()}</code></pre>`);
+    return `%%B${i}%%`;
   });
-  html = html.replace(/`([^`]+)`/g, (_, code) => `<code>${escapeHtml(code)}</code>`);
-
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // Bullet lists
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-
-  // Numbered lists
-  html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-
-  // Blockquote
-  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-
-  // Doc references [Doc_ID: xxx]
-  html = html.replace(/\[Doc_ID:\s*([^\]]+)\]/gi, '<span class="doc-ref">📄 Doc: $1</span>');
-
-  // Line breaks
-  html = html.replace(/\n\n/g, '<br><br>');
-
-  // Restore code blocks
-  codeBlocks.forEach((code, i) => {
-    html = html.replace(`%%CODE${i}%%`, code);
-  });
-
-  return html;
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/^- (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+  h = h.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  h = h.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  h = h.replace(/\[Doc_ID:\s*([^\]]+)\]/g, '<span class="doc-ref">📄 Doc: $1</span>');
+  h = h.replace(/\n\n/g, '<br><br>');
+  blocks.forEach((b, i) => { h = h.replace(`%%B${i}%%`, b); });
+  return h;
 }
 
-function addMessage(role, content) {
-  const container = document.getElementById('chatContainer');
-  // Remove empty state if present
-  const emptyState = container.querySelector('.empty-state');
-  if (emptyState) emptyState.remove();
+function app() {
+  return {
+    online: true,
+    mode: 'agentic',
+    streaming: false,
+    messages: [],
+    error: null,
+    presets: ['什么是 Agentic RAG？', 'RAG 系统有哪些核心组件？', '如何提高检索准确率？'],
 
-  const msgDiv = document.createElement('div');
-  msgDiv.className = `msg ${role}`;
+    async init() {
+      this.checkHealth();
+      setInterval(() => this.checkHealth(), 30000);
+    },
 
-  const avatar = document.createElement('div');
-  avatar.className = 'avatar';
-  avatar.textContent = role === 'user' ? '👤' : '🤖';
+    async checkHealth() {
+      try {
+        const r = await fetch(`${API}/health`);
+        this.online = r.ok;
+      } catch { this.online = false; }
+    },
 
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = simpleMarkdown(content);
+    renderMd,
 
-  msgDiv.appendChild(avatar);
-  msgDiv.appendChild(bubble);
-  container.appendChild(msgDiv);
-  container.scrollTop = container.scrollHeight;
+    async send() {
+      const input = this.$refs.queryInput;
+      const query = input.value.trim();
+      if (!query || this.streaming) return;
 
-  return msgDiv;
-}
+      this.messages.push({ role: 'user', content: query });
+      this.error = null;
+      input.value = '';
+      this.scrollToBottom();
 
-function addThinking() {
-  const container = document.getElementById('chatContainer');
-  const emptyState = container.querySelector('.empty-state');
-  if (emptyState) emptyState.remove();
+      this.streaming = true;
+      const assistantMsg = { role: 'assistant', content: '' };
+      this.messages.push(assistantMsg);
+      this.scrollToBottom();
 
-  const div = document.createElement('div');
-  div.className = 'thinking';
-  div.id = 'thinkingIndicator';
-  div.innerHTML = '🤖 正在检索和思考 <span class="dots"><span></span><span></span><span></span></span>';
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
+      try {
+        const res = await fetch(`${API}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, stream: true, mode: this.mode }),
+        });
 
-function removeThinking() {
-  const el = document.getElementById('thinkingIndicator');
-  if (el) el.remove();
-}
-
-function addError(msg) {
-  const container = document.getElementById('chatContainer');
-  const emptyState = container.querySelector('.empty-state');
-  if (emptyState) emptyState.remove();
-  removeThinking();
-
-  const div = document.createElement('div');
-  div.className = 'error-banner';
-  div.textContent = '⚠️ ' + msg;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-async function send() {
-  if (isStreaming) return;
-
-  const input = document.getElementById('queryInput');
-  const query = input.value.trim();
-  if (!query) return;
-
-  const btn = document.getElementById('sendBtn');
-  const mode = getMode();
-
-  // Add user message
-  addMessage('user', query);
-  input.value = '';
-  input.focus();
-
-  // Start streaming state
-  isStreaming = true;
-  btn.classList.add('sending');
-  btn.disabled = true;
-  addThinking();
-
-  try {
-    const response = await fetch(`${API}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, stream: true, mode }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      addError(`请求失败 (${response.status}): ${errText}`);
-      return;
-    }
-
-    removeThinking();
-
-    // Create assistant message bubble for streaming
-    const assistantDiv = addMessage('assistant', '');
-    const bubble = assistantDiv.querySelector('.bubble');
-    bubble.innerHTML = '';
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Parse SSE events
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || ''; // keep incomplete line in buffer
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const jsonStr = line.slice(6).trim();
-        if (!jsonStr) continue;
-
-        try {
-          const data = JSON.parse(jsonStr);
-          if (data.type === 'text' && data.content) {
-            bubble.innerHTML += data.content;
-            // Apply markdown
-            bubble.innerHTML = simpleMarkdown(bubble.textContent || bubble.innerText || '');
-          } else if (data.type === 'done') {
-            // Stream complete
-          } else if (data.type === 'error') {
-            addError(data.content);
-            return;
-          }
-        } catch (e) {
-          // Skip malformed JSON
+        if (!res.ok) {
+          const errText = await res.text();
+          this.error = `请求失败 (${res.status}): ${errText}`;
+          this.messages.pop();
+          return;
         }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.type === 'text' && data.content) {
+                fullText += data.content;
+                assistantMsg.content = fullText;
+                this.scrollToBottom();
+              } else if (data.type === 'error') {
+                this.error = data.content;
+                return;
+              }
+            } catch {}
+          }
+        }
+      } catch (e) {
+        this.error = `网络错误: ${e.message}`;
+        this.messages.pop();
+      } finally {
+        this.streaming = false;
+        this.$refs.queryInput.focus();
       }
+    },
 
-      // Scroll
-      const container = document.getElementById('chatContainer');
-      container.scrollTop = container.scrollHeight;
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const box = this.$refs.chatBox;
+        box.scrollTop = box.scrollHeight;
+      });
     }
-
-  } catch (e) {
-    addError(`网络错误: ${e.message}`);
-  } finally {
-    isStreaming = false;
-    btn.classList.remove('sending');
-    btn.disabled = false;
-    removeThinking();
-    input.focus();
-  }
+  };
 }
-
-// Focus input on load
-document.getElementById('queryInput').focus();
 </script>
-
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </body>
 </html>

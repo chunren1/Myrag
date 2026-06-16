@@ -85,9 +85,6 @@ async def run_pipeline(
     logger.info("离线数据管道启动")
     logger.info("=" * 60)
 
-    # ----------------------------------------------------------
-    # 阶段 0: 增量更新 — 文件 Hash 比对
-    # ----------------------------------------------------------
     hash_file: Path = Path(docs_dir).parent / "file_hashes.json"
     old_hashes: Dict[str, str] = {}
     if hash_file.exists():
@@ -103,16 +100,23 @@ async def run_pipeline(
         logger.info("所有文档均未变化，跳过管道执行。")
         return 0
 
+    changed_files: List[str] = []
+    added_files: List[str] = []
+    removed_files: List[str] = []
+
     if old_hashes:
-        changed = [k for k in new_hashes if new_hashes[k] != old_hashes.get(k, "")]
-        added = [k for k in new_hashes if k not in old_hashes]
-        removed = [k for k in old_hashes if k not in new_hashes]
-        if changed:
-            logger.info(f"检测到 {len(changed)} 个文件变更: {changed}")
-        if added:
-            logger.info(f"检测到 {len(added)} 个新增文件: {added}")
-        if removed:
-            logger.info(f"检测到 {len(removed)} 个已删除文件: {removed}")
+        changed_files = [k for k in new_hashes if new_hashes[k] != old_hashes.get(k, "")]
+        added_files = [k for k in new_hashes if k not in old_hashes]
+        removed_files = [k for k in old_hashes if k not in new_hashes]
+
+        if changed_files:
+            logger.info(f"检测到 {len(changed_files)} 个文件变更: {changed_files}")
+        if added_files:
+            logger.info(f"检测到 {len(added_files)} 个新增文件: {added_files}")
+        if removed_files:
+            logger.info(f"检测到 {len(removed_files)} 个已删除文件: {removed_files}")
+    else:
+        added_files = list(new_hashes.keys())
 
     # 保存最新 Hash
     hash_file.write_text(json.dumps(new_hashes, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -128,58 +132,74 @@ async def run_pipeline(
         )
         return 0
 
-    # ----------------------------------------------------------
-    # 阶段 2: 初始化客户端
-    # ----------------------------------------------------------
-    logger.info("初始化 API 客户端...")
     sf_client: SiliconFlowClient = SiliconFlowClient()
     qdrant: QdrantClientWrapper = QdrantClientWrapper()
 
     # ----------------------------------------------------------
-    # 阶段 3: Markdown 切分
+    # 删除已移除文件的向量
+    # ----------------------------------------------------------
+    if removed_files:
+        logger.info(f"删除 {len(removed_files)} 个已移除文件的向量...")
+        for removed in removed_files:
+            source_name: str = Path(removed).name
+            qdrant.delete_by_source(source_name)
+
+    # ----------------------------------------------------------
+    # 确定需要处理的文件列表 (仅变更+新增)
+    # ----------------------------------------------------------
+    files_to_process: List[str] = changed_files + added_files
+    if not files_to_process and not removed_files:
+        logger.info("没有需要处理的文件变更。")
+        return 0
+
+    # ----------------------------------------------------------
+    # 阶段 3: Markdown 切分 (仅处理变更/新增文件)
     # ----------------------------------------------------------
     logger.info("阶段 1/4: 智能切分 Markdown 文档...")
     splitter: MarkdownSplitter = MarkdownSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
     )
-    chunks: List[Dict[str, Any]] = splitter.split_directory(docs_dir)
 
-    if not chunks:
-        logger.warning("没有切分出任何 chunk，管道终止。")
-        return 0
+    chunks: List[Dict[str, Any]] = []
+    if files_to_process:
+        for rel_path in files_to_process:
+            abs_path: str = str(docs_path / rel_path)
+            try:
+                file_chunks: List[Dict[str, Any]] = splitter.split_document(abs_path)
+                chunks.extend(file_chunks)
+            except Exception as e:
+                logger.error(f"切分文件 '{rel_path}' 失败: {e}")
 
-    logger.info(f"切分完成: 共 {len(chunks)} 个 chunk。")
+        if not chunks:
+            logger.warning("没有切分出任何 chunk，管道终止。")
+            return 0
 
-    # ----------------------------------------------------------
-    # 阶段 3: Doc2Query 知识增强
-    # ----------------------------------------------------------
-    logger.info("阶段 2/4: LLM 知识增强 (Doc2Query)...")
-    chunks = await enrich_chunks(
-        client=sf_client,
-        chunks=chunks,
-        query_count=query_count,
-    )
+        logger.info(f"切分完成: 共 {len(chunks)} 个 chunk。")
 
-    # ----------------------------------------------------------
-    # 阶段 4: bge-m3 向量化
-    # ----------------------------------------------------------
-    logger.info("阶段 3/4: bge-m3 向量化...")
-    chunks = await embed_chunks(
-        client=sf_client,
-        chunks=chunks,
-        embed_batch_size=embed_batch_size,
-    )
+    if chunks:
+        logger.info("阶段 2/4: LLM 知识增强 (Doc2Query)...")
+        chunks = await enrich_chunks(
+            client=sf_client,
+            chunks=chunks,
+            query_count=query_count,
+        )
 
-    # ----------------------------------------------------------
-    # 阶段 5: 写入 Qdrant
-    # ----------------------------------------------------------
-    logger.info("阶段 4/4: 写入 Qdrant 向量数据库...")
-    count: int = await upload_chunks_to_qdrant(
-        chunks=chunks,
-        qdrant=qdrant,
-        batch_size=upload_batch_size,
-    )
+        logger.info("阶段 3/4: bge-m3 向量化...")
+        chunks = await embed_chunks(
+            client=sf_client,
+            chunks=chunks,
+            embed_batch_size=embed_batch_size,
+        )
+
+        logger.info("阶段 4/4: 写入 Qdrant 向量数据库...")
+        count: int = await upload_chunks_to_qdrant(
+            chunks=chunks,
+            qdrant=qdrant,
+            batch_size=upload_batch_size,
+        )
+    else:
+        count = 0
 
     # ----------------------------------------------------------
     # 完成

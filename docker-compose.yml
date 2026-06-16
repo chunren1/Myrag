@@ -29,11 +29,10 @@ services:
 
     # 环境变量
     environment:
-      # API Key (可选，用于授权访问，开发环境可留空)
-      # QDRANT__SERVICE__API_KEY: your-secret-key
-
-      # 日志级别
       QDRANT__LOG_LEVEL: INFO
+
+      # 启用 API Key 认证 (生产环境建议设置，开发环境可留空)
+      # QDRANT__SERVICE__API_KEY: your-secret-key
 
     # 健康检查
     healthcheck:

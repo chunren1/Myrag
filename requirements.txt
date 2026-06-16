@@ -31,3 +31,7 @@ pydantic-settings>=2.2.0
 
 # --- 类型提示增强 (开发依赖) ---
 typing-extensions>=4.11.0
+
+# --- 测试 ---
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

@@ -9,7 +9,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
+from typing import AsyncIterator, List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -17,7 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-# 将 backend 目录加入 Python 路径
 BACKEND_DIR: Path = Path(__file__).parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
@@ -25,13 +24,10 @@ if str(BACKEND_DIR) not in sys.path:
 from clients.siliconflow import SiliconFlowClient
 from clients.qdrant_client import QdrantClientWrapper
 from core.agent_flow import AgenticRAG
-from api.chat import router as chat_router, set_agent
+from api.chat import router as chat_router
 
 import logging
 
-# ============================================================
-# 日志配置
-# ============================================================
 log_level: str = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(
     level=getattr(logging, log_level.upper(), logging.INFO),
@@ -40,35 +36,15 @@ logging.basicConfig(
 )
 logger: logging.Logger = logging.getLogger(__name__)
 
-# ============================================================
-# 加载环境变量
-# ============================================================
 load_dotenv()
 
-# ============================================================
-# 全局实例
-# ============================================================
-sf_client: SiliconFlowClient = None  # type: ignore
-qdrant: QdrantClientWrapper = None  # type: ignore
-agent: AgenticRAG = None  # type: ignore
 
-
-# ============================================================
-# 应用生命周期管理
-# ============================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """
-    FastAPI 应用生命周期管理器。
-    在启动时初始化所有组件，关闭时清理资源。
-    """
-    global sf_client, qdrant, agent
-
     logger.info("=" * 60)
     logger.info("高品質 RAG 知識庫系统 启动中...")
     logger.info("=" * 60)
 
-    # 检查环境变量
     api_key: str = os.getenv("SILICONFLOW_API_KEY", "")
     if not api_key or api_key == "sk-your-api-key-here":
         logger.error(
@@ -79,34 +55,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError("缺少 SILICONFLOW_API_KEY 环境变量")
 
     try:
-        # 初始化硅基流动 API 客户端
         logger.info("初始化硅基流动 API 客户端...")
         sf_client = SiliconFlowClient(api_key=api_key)
+        app.state.sf_client = sf_client
         logger.info("硅基流动 API 客户端初始化成功。")
 
-        # 初始化 Qdrant 客户端 (容错：Qdrant 未就绪时仅警告)
         logger.info("初始化 Qdrant 向量数据库连接...")
         try:
             qdrant = QdrantClientWrapper(
                 host=os.getenv("QDRANT_HOST", "localhost"),
                 port=int(os.getenv("QDRANT_PORT", "6333")),
                 collection_name=os.getenv("QDRANT_COLLECTION_NAME", "knowledge_base"),
+                api_key=os.getenv("QDRANT_API_KEY"),
             )
             info = qdrant.get_collection_info()
             logger.info(
                 f"Qdrant 连接成功。集合: {info['name']}, "
                 f"向量数: {info.get('vectors_count', 'N/A')}"
             )
+            app.state.qdrant = qdrant
         except Exception as qdrant_err:
             logger.warning(
                 f"Qdrant 连接失败: {qdrant_err}。"
                 f"请运行 'docker compose up -d' 启动 Qdrant。"
                 f"服务将以降级模式运行（/api/chat 暂时不可用）。"
             )
-            qdrant = None  # 标记为未连接
+            app.state.qdrant = None
 
-        # 初始化 Agent（仅当 Qdrant 可用时）
-        if qdrant is not None:
+        if app.state.qdrant is not None:
             logger.info("初始化 Agentic RAG 引擎...")
             agent = AgenticRAG(
                 sf_client=sf_client,
@@ -115,9 +91,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 rerank_top_k=int(os.getenv("MAX_RERANK_TOP_K", "5")),
                 max_reflection_rounds=int(os.getenv("MAX_REFLECTION_ROUNDS", "1")),
             )
-            set_agent(agent)
+            app.state.agent = agent
             logger.info("Agentic RAG 引擎初始化成功。")
         else:
+            app.state.agent = None
             logger.warning("跳过 Agent 初始化（Qdrant 不可用）。")
 
     except Exception as e:
@@ -130,10 +107,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"  📖 API 文档   -> http://localhost:8000/docs")
     logger.info("=" * 60)
 
-    yield  # 应用运行中
+    yield
 
-    # 关闭时清理
     logger.info("系统关闭，清理资源...")
+    qdrant = getattr(app.state, "qdrant", None)
     if qdrant:
         qdrant.close()
     logger.info("资源清理完成。")
@@ -174,12 +151,11 @@ curl -X POST http://localhost:8000/api/chat \\
     openapi_url="/openapi.json",
 )
 
-# ============================================================
-# CORS 配置
-# ============================================================
+cors_origins_str: str = os.getenv("CORS_ORIGINS", "*")
+cors_origins: List[str] = [o.strip() for o in cors_origins_str.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应限制为具体域名
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

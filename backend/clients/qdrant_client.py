@@ -35,6 +35,7 @@ class QdrantClientWrapper:
         port: Optional[int] = None,
         collection_name: Optional[str] = None,
         vector_size: Optional[int] = None,
+        api_key: Optional[str] = None,
     ) -> None:
         """
         初始化 Qdrant 连接。
@@ -44,6 +45,7 @@ class QdrantClientWrapper:
             port: Qdrant 端口，默认从 QDRANT_PORT 环境变量读取。
             collection_name: 集合名称，默认从 QDRANT_COLLECTION_NAME 环境变量读取。
             vector_size: 向量维度，默认从 QDRANT_VECTOR_SIZE 环境变量读取。
+            api_key: Qdrant API Key，默认从 QDRANT_API_KEY 环境变量读取。
         """
         self.host: str = host or os.getenv("QDRANT_HOST", DEFAULT_HOST)
         self.port: int = port or int(os.getenv("QDRANT_PORT", str(DEFAULT_PORT)))
@@ -53,9 +55,13 @@ class QdrantClientWrapper:
         self.vector_size: int = vector_size or int(
             os.getenv("QDRANT_VECTOR_SIZE", str(DEFAULT_VECTOR_SIZE))
         )
+        self.api_key: Optional[str] = api_key or os.getenv("QDRANT_API_KEY")
 
-        # 初始化客户端
-        self.client: QdrantClient = QdrantClient(host=self.host, port=self.port)
+        self.client: QdrantClient = QdrantClient(
+            host=self.host,
+            port=self.port,
+            api_key=self.api_key,
+        )
 
         # 自动创建集合（如果不存在）
         self._ensure_collection()
@@ -221,5 +227,32 @@ class QdrantClientWrapper:
     # ----------------------------------------------------------
     def close(self) -> None:
         """关闭 Qdrant 客户端连接。"""
-        # qdrant_client 基于 HTTP，无需显式关闭
         logger.info("Qdrant 客户端连接已关闭。")
+
+    def delete_by_source(self, source: str) -> int:
+        """
+        删除指定来源文件的所有向量点。
+
+        Args:
+            source: 来源文件名 (匹配 payload 的 source 字段)。
+
+        Returns:
+            删除的点数。
+        """
+        from qdrant_client.http import models as qdrant_models
+
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=qdrant_models.FilterSelector(
+                filter=qdrant_models.Filter(
+                    must=[
+                        qdrant_models.FieldCondition(
+                            key="source",
+                            match=qdrant_models.MatchValue(value=source),
+                        )
+                    ]
+                )
+            ),
+        )
+        logger.info(f"已删除来源 '{source}' 的所有向量点。")
+        return 0
